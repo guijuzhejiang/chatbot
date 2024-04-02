@@ -1,6 +1,7 @@
 import torch
 import gradio as gr
 import time
+import os
 import torchaudio
 from ASR import ASRService
 from Chat import ChatService
@@ -34,20 +35,37 @@ class ChatBot():
 # 初始化ChatBot实例
 chat_bot = ChatBot()
 
-# 创建Gradio界面
-file_transcribe = gr.Interface(
-    fn=chat_bot.chat,
-    inputs=[
-        gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file"),
-    ],
-    outputs="text",
-    title="Transcribe Audio",
-    description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
-    allow_flagging="never",
-)
+# # 创建Gradio界面
+# file_transcribe = gr.Interface(
+#     fn=chat_bot.chat,
+#     inputs=[
+#         gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file"),
+#     ],
+#     outputs="text",
+#     title="Transcribe Audio",
+#     description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
+#     allow_flagging="never",
+# )
+#
+# demo = gr.Blocks()
+# with demo:
+#     gr.TabbedInterface([file_transcribe], ["Audio file"])
 
-demo = gr.Blocks()
-with demo:
-    gr.TabbedInterface([file_transcribe], ["Audio file"])
+def file_change(audio_fp):
+    print(audio_fp)
+    if audio_fp is None:
+        return [gr.update(interactive=False), None]
+    else:
+        file_uploaded = os.path.exists(audio_fp)
+        return [gr.update(interactive=file_uploaded), None if file_uploaded else gr.update("upload failed")]
 
-demo.launch(server_name='0.0.0.0', server_port=8081)
+
+with gr.Blocks() as demo:
+    audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file")
+    submit_btn = gr.Button("Submit", interactive=False, elem_id="submit_btn")
+    text_output = gr.Text(label="Output")
+    audio_input.change(file_change, inputs=audio_input, outputs=[submit_btn, text_output])
+    submit_btn.click(chat_bot.chat, inputs=audio_input, outputs=text_output)
+
+demo.launch(server_name='0.0.0.0', server_port=8081, root_path="https://guiju-bar.link:8889")
+
