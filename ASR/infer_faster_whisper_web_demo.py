@@ -60,11 +60,6 @@ def transcribe(audio, task):
     return transcribe_faster_whisper(audio_path, task=task)
 
 
-def process_audio(audio):
-    # 处理上传的音频文件
-    print(audio)
-    pass
-
 output = gr.Textbox(label="Output", visible=True)
 audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio")
 
@@ -72,8 +67,7 @@ file_transcribe = gr.Interface(
     fn=transcribe,
     inputs=[
         # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file", streaming=True),
-        # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio"),
-        audio_input,
+        gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio"),
         gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
     ],
     outputs=output,
@@ -84,6 +78,24 @@ file_transcribe = gr.Interface(
 
 demo = gr.Blocks()
 with demo:
-    audio_input.change(process_audio, inputs=audio_input, outputs=output)
     gr.TabbedInterface([file_transcribe], ["Audio file"])
-    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://guiju-bar.link:8889')
+    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
+
+# def file_change(audio_fp):
+#     print(audio_fp)
+#     if audio_fp is None:
+#         return [gr.update(interactive=False), None]
+#     else:
+#         file_uploaded = os.path.exists(audio_fp)
+#         return [gr.update(interactive=file_uploaded), None if file_uploaded else gr.update("upload failed")]
+#
+#
+# with gr.Blocks() as demo:
+#     audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file")
+#     task = gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
+#     submit_btn = gr.Button("Submit", interactive=False, elem_id="submit_btn")
+#     text_output = gr.Text(label="Output")
+#     audio_input.change(file_change, inputs=audio_input, outputs=[submit_btn, text_output])
+#     submit_btn.click(transcribe, inputs=audio_input, outputs=text_output)
+#
+# demo.launch(server_name='0.0.0.0', server_port=8081, root_path="https://guiju-bar.link:8889")
