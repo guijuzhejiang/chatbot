@@ -1,3 +1,6 @@
+import os
+import time
+
 import torch
 import gradio as gr
 from faster_whisper import WhisperModel
@@ -7,8 +10,8 @@ from utils import resample_audio
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-# MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
-MODEL_NAME_ASR_JP = '/home/zzg/workspace/pycharm/Whisper-Finetune/models/ct2/common_voice_16_1/whisper-large-v3/checkpoint-4000/'
+MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
+# MODEL_NAME_ASR_JP = '/home/zzg/workspace/pycharm/Whisper-Finetune/models/ct2/common_voice_16_1/whisper-large-v3/checkpoint-4000/'
 model_ASR_JP = WhisperModel(
     MODEL_NAME_ASR_JP,
     device=device,
@@ -51,22 +54,29 @@ def transcribe(audio, task):
     if audio is None:
         raise gr.Error("No audio file submitted! Please upload or record an audio file before submitting your request.")
         # 针对Gradio麦克风录音，`audio`参数是一个元组，其中包含文件的临时路径
-    if isinstance(audio, tuple):
-        # 使用临时文件的路径
-        audio_path = audio[0]
     else:
         # 如果不是元组，直接使用audio参数（这取决于Gradio版本和行为）
         audio_path = audio
     return transcribe_faster_whisper(audio_path, task=task)
 
+
+def process_audio(audio):
+    # 处理上传的音频文件
+    print(audio)
+    pass
+
+output = gr.Textbox(label="Output", visible=True)
+audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio")
+
 file_transcribe = gr.Interface(
     fn=transcribe,
     inputs=[
         # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file", streaming=True),
-        gr.Audio(sources=["upload", "microphone"], type="filepath"),
+        # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio"),
+        audio_input,
         gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
     ],
-    outputs="text",
+    outputs=output,
     title="Transcribe Audio",
     description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
     allow_flagging="never",
@@ -74,6 +84,6 @@ file_transcribe = gr.Interface(
 
 demo = gr.Blocks()
 with demo:
+    audio_input.change(process_audio, inputs=audio_input, outputs=output)
     gr.TabbedInterface([file_transcribe], ["Audio file"])
-
-demo.launch(server_name='0.0.0.0', server_port=8081)
+    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://guiju-bar.link:8889')
