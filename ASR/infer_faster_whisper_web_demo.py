@@ -216,7 +216,10 @@ def audio_stream(*args, **kwargs):
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if len(buf_center[client_id]['data']) > chunk_length_in_bytes:
-            res = asyncio.run(process_audio_async(buf_center[client_id]['data'], client_id, lang))
+            loop = asyncio.get_event_loop()
+            future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
+            res = loop.run_until_complete(future)
+            # res = asyncio.run()
             buf_center[client_id]['data'].clear()
 
             if 'words' in res.keys() and len(res['words']) > 0:
