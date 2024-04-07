@@ -267,5 +267,5 @@ if __name__ == '__main__':
         # audio_input.stream(audio_stream, inputs=audio_input, outputs=[text_output])
         # audio_input.upload(file_upload, inputs=audio_input, outputs=[text_output])
 
-    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
-    # demo.launch(server_name='0.0.0.0', server_port=8081)
+    # demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
+    demo.launch(server_name='0.0.0.0', server_port=8081)
