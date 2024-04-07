@@ -56,7 +56,11 @@ def transcribe(audio, task):
     else:
         # 如果不是元组，直接使用audio参数（这取决于Gradio版本和行为）
         audio_path = audio
-    return transcribe_faster_whisper(audio_path, task=task)
+    if task == 'translate':
+        language = 'zh'
+    else:
+        language = 'ja'
+    return transcribe_faster_whisper(audio_path, language=language)
 
 
 output = gr.Textbox(label="Output", visible=True)

@@ -50,7 +50,15 @@ def transcribe_faster_whisper(audio, language='ja', task="transcribe", beam_size
     # 设置initial_prompt
     initial_prompt = "これから日本語の音声を認識します。"
     #audio is a *.wav file
-    segments, info = model_ASR_JP.transcribe(audio, language=language, task=task, beam_size=beam_size, initial_prompt=initial_prompt)
+    segments, info = model_ASR_JP.transcribe(audio,
+                                             language=language,
+                                             task=task,
+                                             beam_size=beam_size,
+                                             initial_prompt=initial_prompt,
+                                             word_timestamps=True,
+                                             vad_filter=True,
+                                             vad_parameters=dict(min_silence_duration_ms=500)
+                                             )
     print("Detected language '%s' with probability %f" % (info.language, info.language_probability))
     text_list = []
     text_timestamp_list = []
