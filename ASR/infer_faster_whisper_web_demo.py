@@ -1,11 +1,10 @@
 import argparse
 import asyncio
-import datetime
 import json
 import os
 import time
 
-# import torch
+import torch
 import uuid
 import wave
 
@@ -84,8 +83,7 @@ class PyannoteVAD(VADInterface):
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-MODEL_NAME_ASR_JP = '/home/ray/Workspace/model/asr/faster-whisper-large-v2'
-# MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
+MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
 model_ASR_JP = WhisperModel(
     MODEL_NAME_ASR_JP,
     device=device,
@@ -146,7 +144,7 @@ async def process_audio_async(audio_data, cid, lang):
     # VAD
     audio_dir_path = f"audio_data/{cid}"
     os.makedirs(audio_dir_path, exist_ok=True)
-    audio_file_path = os.path.join(audio_dir_path, f'{datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
+    audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
     with wave.open(audio_file_path, 'wb') as wav_file:
         wav_file.setnchannels(1)  # Assuming mono audio
         wav_file.setsampwidth(samples_width)
@@ -206,11 +204,13 @@ def audio_stream(*args, **kwargs):
     print(args)
     print(kwargs)
     if args:
-        sample_rate, lang, data, client_id = args
+        audio_datas, lang, task, client_id = args
+        sample_rate, data = audio_datas
 
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].extend(data.tobytes())
         else:
+            buf_center[client_id] = {}
             buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] += data.tobytes()
 
@@ -232,7 +232,7 @@ if __name__ == '__main__':
     audio_file_input = gr.Audio(sources=["upload"], type="filepath", label="Record Audio", streaming=False)
 
     text_mic_output = gr.Textbox(label="Output", visible=True)
-    audio_mic_input = gr.Audio(sources=["microphone"], type="numpy", label="Record Audio", streaming=True, WaveformOptions={"sample_rate": sampling_rate})
+    audio_mic_input = gr.Audio(sources=["microphone"], type="numpy", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
     client_id_mic_input = gr.Text(str(uuid.uuid4()), visible=False)
 
     file_transcribe = gr.Interface(
