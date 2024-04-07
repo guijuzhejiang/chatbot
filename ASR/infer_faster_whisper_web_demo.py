@@ -108,11 +108,12 @@ def process_audio_async(audio_data, cid, lang):
     audio_dir_path = f"audio_data/{cid}"
     os.makedirs(audio_dir_path, exist_ok=True)
     audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
-    with wave.open(audio_file_path, 'wb') as wav_file:
-        wav_file.setnchannels(1)  # Assuming mono audio
-        wav_file.setsampwidth(samples_width)
-        wav_file.setframerate(sampling_rate)
-        wav_file.writeframes(audio_data)
+    merge_wav_files(audio_data, audio_file_path)
+    # with wave.open(audio_file_path, 'wb') as wav_file:
+    #     wav_file.setnchannels(1)  # Assuming mono audio
+    #     wav_file.setsampwidth(samples_width)
+    #     wav_file.setframerate(sampling_rate)
+    #     wav_file.writeframes(audio_data)
 
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
@@ -168,14 +169,14 @@ def audio_stream(*args, **kwargs):
     print(kwargs)
     if args:
         audio_datas, lang, task, client_id = args
-        sample_rate, data = audio_datas
+        # sample_rate, data = audio_datas
 
         if client_id in buf_center.keys():
-            buf_center[client_id]['data'].extend(bytearray(data.tobytes()))
+            buf_center[client_id]['data'].append(audio_datas)
         else:
             buf_center[client_id] = {}
-            buf_center[client_id]['data'] = bytearray()
-            buf_center[client_id]['data'] += bytearray(data.tobytes())
+            # buf_center[client_id]['data'] = bytearray()
+            buf_center[client_id]['data'] = [audio_datas]
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if len(buf_center[client_id]['data']) > chunk_length_in_bytes:
@@ -194,12 +195,34 @@ def audio_stream(*args, **kwargs):
                 return buf_center[client_id]['texts']
 
 
+def merge_wav_files(input_files, output_file):
+    """
+    合并多个 WAV 文件为一个文件
+
+    Args:
+        input_files (list): 要合并的 WAV 文件路径列表
+        output_file (str): 合并后的 WAV 文件路径
+    """
+    # 打开第一个 WAV 文件获取参数
+    with wave.open(input_files[0], 'r') as wav:
+        params = wav.getparams()
+
+    # 创建输出 WAV 文件
+    with wave.open(output_file, 'w') as output:
+        output.setparams(params)
+
+        # 将所有 WAV 文件的数据写入输出文件
+        for input_file in input_files:
+            with wave.open(input_file, 'r') as wav:
+                output.writeframes(wav.readframes(wav.getnframes()))
+
+
 if __name__ == '__main__':
     text_file_output = gr.Textbox(label="Output", visible=True)
     audio_file_input = gr.Audio(sources=["upload"], type="filepath", label="Record Audio", streaming=False)
 
     text_mic_output = gr.Textbox(label="Output", visible=True)
-    audio_mic_input = gr.Audio(sources=["microphone"], type="numpy", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
+    audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
     client_id_mic_input = gr.Text(str(uuid.uuid4()), visible=False)
 
     file_transcribe = gr.Interface(
