@@ -11,7 +11,6 @@ from utils import resample_audio
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
-# MODEL_NAME_ASR_JP = '/home/zzg/workspace/pycharm/Whisper-Finetune/models/ct2/common_voice_16_1/whisper-large-v3/checkpoint-4000/'
 model_ASR_JP = WhisperModel(
     MODEL_NAME_ASR_JP,
     device=device,
@@ -66,8 +65,8 @@ audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label=
 file_transcribe = gr.Interface(
     fn=transcribe,
     inputs=[
-        # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file", streaming=True),
-        gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio"),
+        gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file", streaming=True),
+        # gr.Audio(sources=["upload", "microphone"], type="filepath", label="Record Audio"),
         gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
     ],
     outputs=output,
@@ -80,22 +79,3 @@ demo = gr.Blocks()
 with demo:
     gr.TabbedInterface([file_transcribe], ["Audio file"])
     demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
-
-# def file_change(audio_fp):
-#     print(audio_fp)
-#     if audio_fp is None:
-#         return [gr.update(interactive=False), None]
-#     else:
-#         file_uploaded = os.path.exists(audio_fp)
-#         return [gr.update(interactive=file_uploaded), None if file_uploaded else gr.update("upload failed")]
-#
-#
-# with gr.Blocks() as demo:
-#     audio_input = gr.Audio(sources=["upload", "microphone"], type="filepath", label="Audio file")
-#     task = gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
-#     submit_btn = gr.Button("Submit", interactive=False, elem_id="submit_btn")
-#     text_output = gr.Text(label="Output")
-#     audio_input.change(file_change, inputs=audio_input, outputs=[submit_btn, text_output])
-#     submit_btn.click(transcribe, inputs=audio_input, outputs=text_output)
-#
-# demo.launch(server_name='0.0.0.0', server_port=8081, root_path="https://guiju-bar.link:8889")
