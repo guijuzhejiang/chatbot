@@ -171,11 +171,11 @@ def audio_stream(*args, **kwargs):
         sample_rate, data = audio_datas
 
         if client_id in buf_center.keys():
-            buf_center[client_id]['data'].extend(data.tobytes())
+            buf_center[client_id]['data'].extend(bytearray(data.tobytes()))
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['data'] = bytearray()
-            buf_center[client_id]['data'] += data.tobytes()
+            buf_center[client_id]['data'] += bytearray(data.tobytes())
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if len(buf_center[client_id]['data']) > chunk_length_in_bytes:
