@@ -44,43 +44,6 @@ asr_args = json.loads(args.asr_args)
 vad_pipeline = VADFactory.create_vad_pipeline(args.vad_type, **vad_args)
 asr_pipeline = ASRFactory.create_asr_pipeline(args.asr_type, **asr_args)
 
-
-class PyannoteVAD(VADInterface):
-    """
-    Pyannote-based implementation of the VADInterface.
-    """
-
-    def __init__(self, **kwargs):
-        """
-        Initializes Pyannote's VAD pipeline.
-
-        Args:
-            model_name (str): The model name for Pyannote.
-            auth_token (str, optional): Authentication token for Hugging Face.
-        """
-
-        model_name = kwargs.get('model_name', "pyannote/segmentation")
-        if 'segmentation-3.0' in model_name:
-            pyannote_args = kwargs.get('pyannote_args', {"min_duration_on": 0.3, "min_duration_off": 0.3})
-        else:
-            pyannote_args = kwargs.get('pyannote_args',
-                                       {"onset": 0.5, "offset": 0.5, "min_duration_on": 0.3, "min_duration_off": 0.3})
-        self.model = Model.from_pretrained(model_name)
-        self.vad_pipeline = VoiceActivityDetection(segmentation=self.model)
-        self.vad_pipeline.instantiate(pyannote_args)
-
-    async def detect_activity(self, client):
-        audio_file_path = await save_audio_to_file(client.scratch_buffer, client.get_file_name())
-        vad_results = self.vad_pipeline(audio_file_path)
-        # remove(audio_file_path)
-        vad_segments = []
-        if len(vad_results) > 0:
-            vad_segments = [
-                {"start": segment.start, "end": segment.end, "confidence": 1.0}
-                for segment in vad_results.itersegments()
-            ]
-        return vad_segments
-
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
@@ -138,7 +101,7 @@ def transcribe(audio, task):
     return transcribe_faster_whisper(audio_path, language=language)
 
 
-async def process_audio_async(audio_data, cid, lang):
+def process_audio_async(audio_data, cid, lang):
     start = time.time()
 
     # VAD
@@ -216,10 +179,10 @@ def audio_stream(*args, **kwargs):
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if len(buf_center[client_id]['data']) > chunk_length_in_bytes:
-            loop = asyncio.get_event_loop()
-            future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
-            res = loop.run_until_complete(future)
-            # res = asyncio.run()
+            # loop = asyncio.get_event_loop()
+            # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
+            # res = loop.run_until_complete(future)
+            res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
             buf_center[client_id]['data'].clear()
 
             if 'words' in res.keys() and len(res['words']) > 0:
@@ -229,6 +192,7 @@ def audio_stream(*args, **kwargs):
                 else:
                     buf_center[client_id]['texts'] = words
                 return buf_center[client_id]['texts']
+
 
 if __name__ == '__main__':
     text_file_output = gr.Textbox(label="Output", visible=True)
