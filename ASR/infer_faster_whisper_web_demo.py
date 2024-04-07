@@ -185,7 +185,7 @@ def audio_stream(*args, **kwargs):
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
             buf_center[client_id]['data'].clear()
 
-            if 'words' in res.keys() and len(res['words']) > 0:
+            if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = ' '.join([w['word'] for w in res['words']]) + '\n'
                 if 'texts' in buf_center[client_id].keys():
                     buf_center[client_id]['texts'] += words
