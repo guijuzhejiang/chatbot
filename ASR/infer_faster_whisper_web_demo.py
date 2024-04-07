@@ -162,6 +162,21 @@ def process_audio_async(audio_data, cid, lang):
 
         buf_center[cid]['data'].clear()
 
+def get_wav_file_size(wav_file):
+    """
+    获取 WAV 文件的总字节数
+
+    Args:
+        wav_file (str): WAV 文件的路径
+
+    Returns:
+        int: WAV 文件的总字节数
+    """
+    with wave.open(wav_file, 'r') as wav:
+        num_frames = wav.getnframes()
+        frame_width = wav.getsampwidth()
+        return num_frames * frame_width
+
 
 def audio_stream(*args, **kwargs):
     print("audio_stream")
@@ -173,13 +188,15 @@ def audio_stream(*args, **kwargs):
 
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].append(audio_datas)
+            buf_center[client_id]['data_len'] += get_wav_file_size(audio_datas)
         else:
             buf_center[client_id] = {}
             # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [audio_datas]
+            buf_center[client_id]['data_len'] = get_wav_file_size(audio_datas)
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
-        if len(buf_center[client_id]['data']) > chunk_length_in_bytes:
+        if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
