@@ -11,6 +11,8 @@ import wave
 import gradio as gr
 from faster_whisper import WhisperModel
 from datetime import datetime
+
+from src.filters import japanese_stream_filter
 from utils import resample_audio
 from src.asr.faster_whisper_asr import language_codes
 from src.audio_utils import save_audio_to_file
@@ -146,7 +148,7 @@ def process_audio_async(audio_data, cid, lang):
         transcription = {
             "language": info.language,
             "language_probability": info.language_probability,
-            "text": ' '.join([s.text.strip() for s in segments]),
+            "text": ''.join([s.text.strip() for s in segments]),
             "words":
                 [
                     {"word": w.word, "start": w.start, "end": w.end, "probability": w.probability} for w in
@@ -204,7 +206,8 @@ def audio_stream(*args, **kwargs):
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
-                words = ' '.join([w['word'] for w in res['words']]) + '\n'
+                words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
+
                 if 'texts' in buf_center[client_id].keys():
                     buf_center[client_id]['texts'] += words
                 else:
@@ -241,7 +244,8 @@ if __name__ == '__main__':
     text_file_output = gr.Textbox(label="Output", visible=True)
     audio_file_input = gr.Audio(sources=["upload"], type="filepath", label="Record Audio", streaming=False)
 
-    text_mic_output = gr.Textbox(label="Output", visible=True)
+    text_mic_output = gr.TextArea(label="Output", visible=True)
+    text_mic_output.style(container=True, height="100%")
     audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
     client_id_mic_input = gr.Text(str(uuid.uuid4()), visible=False)
 
@@ -261,7 +265,7 @@ if __name__ == '__main__':
         fn=audio_stream,
         inputs=[
             audio_mic_input,
-            gr.Radio(language_codes.keys(), label="lang", value="chinese"),
+            gr.Radio(language_codes.keys(), label="lang", value="japanese", visible=False),
             gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
             client_id_mic_input
         ],
@@ -277,5 +281,5 @@ if __name__ == '__main__':
         # audio_input.stream(audio_stream, inputs=audio_input, outputs=[text_output])
         # audio_input.upload(file_upload, inputs=audio_input, outputs=[text_output])
 
-    # demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
-    demo.launch(server_name='0.0.0.0', server_port=8081)
+    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
+    # demo.launch(server_name='0.0.0.0', server_port=8081)
