@@ -128,14 +128,14 @@ def process_audio_async(audio_data, cid, lang):
         return
 
     # ASR
-    last_segment_should_end_before = ((len(audio_data) / (sampling_rate * samples_width)) - chunk_length_seconds)
-    if vad_results[-1]['end'] < last_segment_should_end_before:
+    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sampling_rate * samples_width)) - chunk_length_seconds)
+    if vad_segments[-1]['end'] < last_segment_should_end_before:
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
         # initial_prompt = "これから日本語の音声を認識します。"
         segments, info = asr_pipeline.asr_pipeline.transcribe(audio_file_path,
                                                       word_timestamps=True,
-                                                      language=language,
+                                                      language=language_codes[language],
                                                       # initial_prompt=initial_prompt,
                                                       vad_filter=True,
                                                       vad_parameters=dict(min_silence_duration_ms=500)
@@ -182,7 +182,7 @@ def audio_stream(*args, **kwargs):
     print("audio_stream")
     print(args)
     print(kwargs)
-    if args:
+    if args and args[0]:
         audio_datas, lang, task, client_id = args
         # sample_rate, data = audio_datas
 
@@ -191,6 +191,7 @@ def audio_stream(*args, **kwargs):
             buf_center[client_id]['data_len'] += get_wav_file_size(audio_datas)
         else:
             buf_center[client_id] = {}
+            buf_center[client_id]['texts'] = ''
             # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [audio_datas]
             buf_center[client_id]['data_len'] = get_wav_file_size(audio_datas)
@@ -201,7 +202,6 @@ def audio_stream(*args, **kwargs):
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
-            buf_center[client_id]['data'].clear()
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = ' '.join([w['word'] for w in res['words']]) + '\n'
@@ -209,7 +209,10 @@ def audio_stream(*args, **kwargs):
                     buf_center[client_id]['texts'] += words
                 else:
                     buf_center[client_id]['texts'] = words
-                return buf_center[client_id]['texts']
+
+                buf_center[client_id]['data'].clear()
+
+        return buf_center[client_id]['texts']
 
 
 def merge_wav_files(input_files, output_file):
