@@ -241,11 +241,10 @@ def merge_wav_files(input_files, output_file):
 
 
 if __name__ == '__main__':
-    text_file_output = gr.Textbox(label="Output", visible=True)
+    text_file_output = gr.Textbox(label="Output", elem_classes="text_output", visible=True, scale=1, lines=20, autoscroll=True)
     audio_file_input = gr.Audio(sources=["upload"], type="filepath", label="Record Audio", streaming=False)
 
-    text_mic_output = gr.TextArea(label="Output", visible=True)
-    text_mic_output.style(container=True, height="100%")
+    text_mic_output = gr.TextArea(label="Output", elem_classes="text_output", visible=True, scale=1, lines=20, autoscroll=True)
     audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
     client_id_mic_input = gr.Text(str(uuid.uuid4()), visible=False)
 
@@ -276,7 +275,7 @@ if __name__ == '__main__':
         live=True
     )
 
-    with gr.Blocks() as demo:
+    with gr.Blocks(fill_height=True, css="style.css") as demo:
         gr.TabbedInterface([file_transcribe, mic_transcribe], ["Audio file", "Microphone"])
         # audio_input.stream(audio_stream, inputs=audio_input, outputs=[text_output])
         # audio_input.upload(file_upload, inputs=audio_input, outputs=[text_output])
