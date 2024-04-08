@@ -180,6 +180,12 @@ def get_wav_file_size(wav_file):
         return num_frames * frame_width
 
 
+def mic_interface(*args, **kwargs):
+    print("mic_interface")
+    print(args)
+    print(kwargs)
+
+
 def audio_stream(*args, **kwargs):
     print("audio_stream")
     print(args)
@@ -247,6 +253,17 @@ if __name__ == '__main__':
     text_mic_output = gr.TextArea(label="Output", elem_classes="text_output", visible=True, scale=1, lines=20, autoscroll=True)
     audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio", streaming=True, waveform_options={"sample_rate": sampling_rate})
     client_id_mic_input = gr.Text(str(uuid.uuid4()), visible=False)
+    lang_mic_input = gr.Radio(language_codes.keys(), label="lang", value="japanese", visible=False)
+    task_mic_input = gr.Radio(["transcribe", "translate"], label="Task", value="transcribe")
+
+    audio_mic_input.stream(audio_stream,
+                           inputs=[
+                               audio_mic_input,
+                               lang_mic_input,
+                               task_mic_input,
+                               client_id_mic_input
+                           ],
+                           outputs=text_mic_output,)
 
     file_transcribe = gr.Interface(
         fn=transcribe,
@@ -261,18 +278,18 @@ if __name__ == '__main__':
     )
 
     mic_transcribe = gr.Interface(
-        fn=audio_stream,
+        fn=mic_interface,
         inputs=[
             audio_mic_input,
-            gr.Radio(language_codes.keys(), label="lang", value="japanese", visible=False),
-            gr.Radio(["transcribe", "translate"], label="Task", value="transcribe"),
+            lang_mic_input,
+            task_mic_input,
             client_id_mic_input
         ],
         outputs=text_mic_output,
         title="Transcribe Audio",
         description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
         allow_flagging="never",
-        live=True
+        live=False
     )
 
     with gr.Blocks(fill_height=True, css="style.css") as demo:
