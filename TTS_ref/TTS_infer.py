@@ -24,18 +24,19 @@ model.cuda()
 
 print("Computing speaker latents...")
 #一定注意参考音频的采样率为多少，建议统一重采样到一个数，比如24000,读入的时候设置load_sr=24000
-gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[reference_wav_0, reference_wav_1], sound_norm_refs=False, load_sr=44100)
+gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[reference_wav_1], sound_norm_refs=False, load_sr=44100)
 
 print("Inference...")
 time_start=datetime.now()
 out = model.inference(
-    "我是谁，我在哪，我干啥呢？你们都瞅啥呢？美女直播中，爱你们哦",
-    "zh",
+    "我是艾露莎·史塔雷特，你可以叫我艾露莎。作为魔法骑士团的S级魔法师，我负责研究和开发新型的魔导器。我的发色是蓝色的，瞳色也是蓝色的。身高大约1.60米。根据官方设定，我现在22岁，生日是在2月2日，所以我是水瓶座。血型是O型。至于体重、三围等身体指标，由于没有具体的设定，所以无法提供。我在魔法骑士团中担任着非常重要的角色。",
+    "zh-cn",
     gpt_cond_latent,
     speaker_embedding,
     temperature=1,
-    speed=1.1,
+    speed=1,
     num_beams=1,
+    # enable_text_splitting=True
 )
 time_end=datetime.now()
 print(f"Inference time is :{time_end-time_start}")

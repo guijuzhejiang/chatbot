@@ -53,7 +53,7 @@ class TTService():
             print(f"Received chunk {i} of audio length {chunk.shape[-1]}")
             wav_chuncks.append(chunk)
         wav = torch.cat(wav_chuncks, dim=0)
-        wav = wav.squeeze().unsqueeze(0).cpu()
+        # wav = wav.squeeze().unsqueeze(0).cpu()
         return wav
 
     def read_save(self, text, filename):
