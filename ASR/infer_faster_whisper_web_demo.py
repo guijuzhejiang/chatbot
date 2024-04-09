@@ -64,8 +64,9 @@ def transcribe_faster_whisper(audio, language='ja', task="transcribe", beam_size
     transcribe_start = datetime.now()
     #音频重采样到16000
     # resampled_audio = resample_audio(audio)
-    # 设置initial_prompt
-    initial_prompt = "これから日本語の音声を認識します。"
+    # 设置initial_prompt，最后写上标点符号，有助于生成标点
+    # initial_prompt = "これから日本語の音声を認識します。"
+    initial_prompt = "日本語での会議の記録だ。"
     segments, info = model_ASR_JP.transcribe(audio,
                                              language=language,
                                              task=task,
