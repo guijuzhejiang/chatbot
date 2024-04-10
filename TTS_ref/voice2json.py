@@ -16,13 +16,12 @@ dir_root = '/home/zzg/data/Audio/reference_wav'
 subdir_wav = 'wav'
 subdir_json = 'json'
 dir_wav = os.path.join(dir_root, subdir_wav)
-for reference_wav in glob(os.path.join(dir_wav, '*.wav')):
-
+for reference_wav in glob(os.path.join(dir_wav, '*.mp3')):
     json_save_path = os.path.join(dir_root, subdir_json, os.path.basename(reference_wav).split('.')[0] +'.json')
     if not os.path.exists(json_save_path):
         # 一定注意参考音频的采样率为多少，建议统一重采样到一个数，比如24000,读入的时候设置load_sr=24000
         gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[reference_wav],
-                                                                            sound_norm_refs=False, load_sr=44100)
+                                                                            sound_norm_refs=False, load_sr=22050)
         json_ob = {"gpt_cond_latent": gpt_cond_latent.squeeze().tolist(), "speaker_embedding": speaker_embedding.squeeze().tolist()}
         with open(json_save_path, "w", encoding="utf-8") as f:
             json.dump(json_ob, f, ensure_ascii=False)
