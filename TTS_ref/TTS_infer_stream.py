@@ -26,12 +26,13 @@ gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[
 print("Inference...")
 t0 = time.time()
 chunks = model.inference_stream(
-    "论贯通中西，穿戴有面儿，生活有劲儿，就要数“辽北大地范德彪”了.彪哥，一枚武能赤膊斗殴，文通古希腊哲学的杰出东北青年。对内，他永远四十一；对外，他永远二十九。对生活不爽的态度使得他的青春永远在线。",
+    "我是艾露莎·史塔雷特，你可以叫我艾露莎。作为魔法骑士团的S级魔法师，我负责研究和开发新型的魔导器。我的发色是蓝色的，瞳色也是蓝色的。身高大约1.60米。根据官方设定，我现在22岁，生日是在2月2日，所以我是水瓶座。血型是O型。至于体重、三围等身体指标，由于没有具体的设定，所以无法提供。我在魔法骑士团中担任着非常重要的角色。",
     "zh",
     gpt_cond_latent,
     speaker_embedding,
     temperature=1,
-    speed=1.1,
+    speed=1,
+    enable_text_splitting=True
 )
 
 wav_chuncks = []
