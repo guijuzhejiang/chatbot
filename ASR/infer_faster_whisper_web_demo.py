@@ -284,7 +284,7 @@ if __name__ == '__main__':
         title="Transcribe Audio",
         description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
         allow_flagging="never",
-        live=False
+        live=True
     )
     # with gr.Blocks(fill_height=True, title="Transcribe Audio") as mic_demo:
     #     with gr.Row():
