@@ -58,13 +58,12 @@ def synthesize(generator, ref_wav_json):
 
     timeArray = time.localtime()
     timeStr = time.strftime('%Y-%m-%d_%H-%M-%S', timeArray)
-    filename = f'{engine.engine_name}_{timeStr}.wav'
-
+    out_wav = f'TTS_wav/RealtimeTTS_stream_{timeStr}.wav'
     # ❗ use these for chinese: minimum_sentence_length = 2, minimum_first_fragment_length = 2, tokenizer="stanza", language="zh", context_size=2
     stream.play(
         minimum_sentence_length=2,
         minimum_first_fragment_length=2,
-        output_wavfile=f"gen_wav/{filename}.wav",
+        output_wavfile=out_wav,
         # on_sentence_synthesized=lambda sentence:
         # print("Synthesized: " + sentence),
         tokenizer="stanza",
@@ -72,8 +71,8 @@ def synthesize(generator, ref_wav_json):
         context_size=2,
         # muted=True,
     )
-    with open(f"{filename}.txt", "w", encoding="utf-8") as f:
-        f.write(stream.text())
+    # with open(f"{filename}.txt", "w", encoding="utf-8") as f:
+    #     f.write(stream.text())
     engine.shutdown()
 
 
@@ -84,7 +83,7 @@ if __name__ == '__main__':
     # file_path = '/home/zzg/商业项目/清华/ソフトウエア基本契約書.doc'
     # file_path = '/home/zzg/商业项目/清华/KDDI関連内容.pptx'
     # file_path = '/home/zzg/商业项目/王老师/多莫态_video_speech_text_20230101/easynlp.txt'
-    file_path = 'document_test.txt'
+    file_path = 'langchain_ref/document_test.txt'
     # 加载PDF文件并存储在本地向量数据库
     contents = load_file(file_path)
 
