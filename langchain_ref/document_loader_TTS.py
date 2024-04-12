@@ -46,8 +46,8 @@ def synthesize(generator, ref_wav_json):
                          speed=1.0,
                          length_penalty=1,
                          repetition_penalty=10.0,
-                         stream_chunk_size=20,
-                         overlap_wav_len=1024,
+                         stream_chunk_size=40,
+                         overlap_wav_len=4096,
                          use_deepspeed=True,)  # using a chinese cloning reference gives better quality
     # stream = TextToAudioStream(engine)
     stream = TextToAudioStream(engine, log_characters=True, tokenizer="stanza", language="zh")
