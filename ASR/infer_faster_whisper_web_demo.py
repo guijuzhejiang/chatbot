@@ -4,7 +4,8 @@ import json
 import os
 import shutil
 import time
-
+from gradio import processing_utils
+import numpy as np
 import torch
 import uuid
 import wave
@@ -16,12 +17,8 @@ from datetime import datetime
 from src.filters import japanese_stream_filter
 # from utils import resample_audio
 from src.asr.faster_whisper_asr import language_codes
-from src.audio_utils import save_audio_to_file
-from src.vad.vad_interface import VADInterface
 from src.asr.asr_factory import ASRFactory
 from src.vad.vad_factory import VADFactory
-from pyannote.audio import Model
-from pyannote.audio.pipelines import VoiceActivityDetection
 
 buf_center = {}
 chunk_length_seconds = 3
@@ -32,9 +29,9 @@ samples_width = 2
 def parse_args():
     parser = argparse.ArgumentParser(description="VoiceStreamAI Server: Real-time audio transcription using self-hosted Whisper and WebSocket")
     parser.add_argument("--vad-type", type=str, default="pyannote", help="Type of VAD pipeline to use (e.g., 'pyannote')")
-    parser.add_argument("--vad-args", type=str, default='{"auth_token": "huggingface_token", "model_name": "/media/zzg/GJ_disk01/pretrained_model/pyannote/segmentation-3.0/pytorch_model.bin"}', help="JSON string of additional arguments for VAD pipeline")
+    parser.add_argument("--vad-args", type=str, default='{"auth_token": "huggingface_token", "model_name": "/home/ray/Workspace/model/pyannote/segmentation-3.0/pytorch_model.bin"}', help="JSON string of additional arguments for VAD pipeline")
     parser.add_argument("--asr-type", type=str, default="faster_whisper", help="Type of ASR pipeline to use (e.g., 'whisper')")
-    parser.add_argument("--asr-args", type=str, default='{"model_size": "/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2"}', help="JSON string of additional arguments for ASR pipeline")
+    parser.add_argument("--asr-args", type=str, default='{"model_size": "/home/ray/Workspace/model/guillaumekln/faster-whisper-large-v2"}', help="JSON string of additional arguments for ASR pipeline")
     parser.add_argument("--host", type=str, default="127.0.0.1", help="Host for the WebSocket server")
     parser.add_argument("--port", type=int, default=8765, help="Port for the WebSocket server")
     return parser.parse_args()
@@ -49,14 +46,16 @@ asr_pipeline = ASRFactory.create_asr_pipeline(args.asr_type, **asr_args)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-MODEL_NAME_ASR_JP = '/media/zzg/GJ_disk01/pretrained_model/guillaumekln/faster-whisper-large-v2'
+MODEL_NAME_ASR_JP = '/home/ray/Workspace/model/guillaumekln/faster-whisper-large-v2/'
 model_ASR_JP = WhisperModel(
     MODEL_NAME_ASR_JP,
     device=device,
-    compute_type="float16",
-    num_workers=4,
+    compute_type="int8",
+    num_workers=1,
     local_files_only=True,
 )
+
+
 # or run on GPU with INT8
 # model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
 # or run on CPU with INT8
@@ -112,7 +111,14 @@ def process_audio_async(audio_data, cid, lang):
     audio_dir_path = f"audio_data/{cid}"
     os.makedirs(audio_dir_path, exist_ok=True)
     audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
-    merge_wav_files(audio_data, audio_file_path)
+    # merge_wav_files(audio_data, audio_file_path)
+
+    wav_st = datetime.now()
+    print(f"wav st: {str(wav_st)}")
+    processing_utils.audio_to_file(
+        sampling_rate, np.hstack(audio_data), audio_file_path, format='wav'
+    )
+    print(f"wav merge elapsed: {str(datetime.now() - wav_st)}")
     # with wave.open(audio_file_path, 'wb') as wav_file:
     #     wav_file.setnchannels(1)  # Assuming mono audio
     #     wav_file.setsampwidth(samples_width)
@@ -121,6 +127,9 @@ def process_audio_async(audio_data, cid, lang):
 
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
+    print(f"vad_results: {len(vad_results)}")
+    print(f"vad_elapsed: {datetime.now() - vad_st}")
+
     if len(vad_results) > 0:
         vad_segments = [
             {"start": segment.start, "end": segment.end, "confidence": 1.0}
@@ -137,6 +146,7 @@ def process_audio_async(audio_data, cid, lang):
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
         # initial_prompt = "これから日本語の音声を認識します。"
+        asr_st = datetime.now()
         segments, info = asr_pipeline.asr_pipeline.transcribe(audio_file_path,
                                                       word_timestamps=True,
                                                       language=language_codes[language],
@@ -144,6 +154,7 @@ def process_audio_async(audio_data, cid, lang):
                                                       vad_filter=True,
                                                       vad_parameters=dict(min_silence_duration_ms=500)
                                                       )
+        print(f"asr_elapsed: {datetime.now() - asr_st}")
 
         segments = list(segments)  # The transcription will actually run here.
         flattened_words = [word for segment in segments for word in segment.words]
@@ -161,6 +172,8 @@ def process_audio_async(audio_data, cid, lang):
         if transcription['text'] != '':
             end = time.time()
             transcription['processing_time'] = end - start
+            print(f"processing_time: {transcription['processing_time']}")
+
             # json_transcription = json.dumps(transcription)
             return transcription
 
@@ -194,24 +207,26 @@ def audio_stream(*args, **kwargs):
     print(kwargs)
     if args and args[0]:
         audio_datas, lang, task, client_id = args
-        # sample_rate, data = audio_datas
+        sample_rate, data = audio_datas
 
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].append(audio_datas)
-            buf_center[client_id]['data_len'] += get_wav_file_size(audio_datas)
+            buf_center[client_id]['data_len'] += len(data)
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
             # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [audio_datas]
-            buf_center[client_id]['data_len'] = get_wav_file_size(audio_datas)
+            buf_center[client_id]['data_len'] = len(data)
 
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
+            print(f"start: {str(st)}")
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
+            print(f"end: {str(datetime.now()-st)}")
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
@@ -274,7 +289,7 @@ if __name__ == '__main__':
     # text_mic_output = gr.TextArea(label="Output", elem_classes="text_output", visible=True, scale=1,
     #                               lines=20,
     #                               autoscroll=True)
-
+    #
     # mic_transcribe = gr.Interface(
     #     fn=audio_stream,
     #     inputs=[
@@ -302,7 +317,7 @@ if __name__ == '__main__':
         with gr.Row():
             # input
             with gr.Column(scale=1):
-                audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio",
+                audio_mic_input = gr.Audio(sources=["microphone"], type="numpy", label="Record Audio",
                                            streaming=True,
                                            waveform_options={"sample_rate": 16000})
                 task_mic_input = gr.Radio(["transcribe", "translate"], label="Task", value="transcribe")
@@ -332,5 +347,5 @@ if __name__ == '__main__':
         # audio_input.stream(audio_stream, inputs=audio_input, outputs=[text_output])
         # audio_input.upload(file_upload, inputs=audio_input, outputs=[text_output])
 
-    demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
-    # demo.launch(server_name='0.0.0.0', server_port=8081)
+    # demo.launch(server_name='0.0.0.0', server_port=8081, root_path='https://www.guijutech.com/asr')
+    demo.launch(server_name='0.0.0.0', server_port=8081)
