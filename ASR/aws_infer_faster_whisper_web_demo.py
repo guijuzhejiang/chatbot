@@ -122,9 +122,11 @@ def process_audio_async(audio_data, cid, lang):
     #     wav_file.setframerate(sampling_rate)
     #     wav_file.writeframes(audio_data)
 
+    vad_st = datetime.now()
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
     print(f"vad_results: {len(vad_results)}")
+    print(f"vad_elapsed: {datetime.now()-vad_st}")
 
 
     if len(vad_results) > 0:
@@ -143,6 +145,7 @@ def process_audio_async(audio_data, cid, lang):
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
         # initial_prompt = "これから日本語の音声を認識します。"
+        asr_st = datetime.now()
         segments, info = asr_pipeline.asr_pipeline.transcribe(audio_file_path,
                                                       word_timestamps=True,
                                                       language=language_codes[language],
@@ -150,6 +153,7 @@ def process_audio_async(audio_data, cid, lang):
                                                       vad_filter=True,
                                                       vad_parameters=dict(min_silence_duration_ms=500)
                                                       )
+        print(f"asr_elapsed: {datetime.now() - asr_st}")
 
         segments = list(segments)  # The transcription will actually run here.
         flattened_words = [word for segment in segments for word in segment.words]
@@ -167,6 +171,7 @@ def process_audio_async(audio_data, cid, lang):
         if transcription['text'] != '':
             end = time.time()
             transcription['processing_time'] = end - start
+            print(f"processing_time: {transcription['processing_time']}")
             # json_transcription = json.dumps(transcription)
             return transcription
 
@@ -221,7 +226,10 @@ def audio_stream(*args, **kwargs):
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
+            st = datetime.now
+            print(f"start: {str(st)}")
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
+            print(f"end: {str(datetime.now()-st)}")
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
