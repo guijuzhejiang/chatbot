@@ -13,7 +13,7 @@ from faster_whisper import WhisperModel
 from datetime import datetime
 
 from src.filters import japanese_stream_filter
-from utils import resample_audio
+# from utils import resample_audio
 from src.asr.faster_whisper_asr import language_codes
 from src.audio_utils import save_audio_to_file
 from src.vad.vad_interface import VADInterface
@@ -222,7 +222,7 @@ def audio_stream(*args, **kwargs):
 
                 buf_center[client_id]['data'].clear()
 
-        return gr.update(buf_center[client_id]['texts'], elem_id=client_id)
+        return gr.update(buf_center[client_id]['texts'])
 
 
 def merge_wav_files(input_files, output_file):
