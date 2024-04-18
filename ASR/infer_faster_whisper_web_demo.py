@@ -4,7 +4,7 @@ import json
 import os
 import shutil
 import time
-from gradio import processing_utils
+
 import numpy as np
 import torch
 import uuid
@@ -14,11 +14,17 @@ import gradio as gr
 from faster_whisper import WhisperModel
 from datetime import datetime
 
+from gradio import processing_utils
+
 from src.filters import japanese_stream_filter
 # from utils import resample_audio
 from src.asr.faster_whisper_asr import language_codes
+from src.audio_utils import save_audio_to_file
+from src.vad.vad_interface import VADInterface
 from src.asr.asr_factory import ASRFactory
 from src.vad.vad_factory import VADFactory
+from pyannote.audio import Model
+from pyannote.audio.pipelines import VoiceActivityDetection
 
 buf_center = {}
 chunk_length_seconds = 3
@@ -46,18 +52,16 @@ asr_pipeline = ASRFactory.create_asr_pipeline(args.asr_type, **asr_args)
 
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
-MODEL_NAME_ASR_JP = '/home/ray/Workspace/model/guillaumekln/faster-whisper-large-v2/'
+MODEL_NAME_ASR_JP = '/home/ray/Workspace/model/guillaumekln/faster-whisper-large-v2'
 model_ASR_JP = WhisperModel(
     MODEL_NAME_ASR_JP,
     device=device,
     compute_type="int8",
-    num_workers=1,
+    num_workers=4,
     local_files_only=True,
 )
-
-
 # or run on GPU with INT8
-# model = WhisperModel(model_size, device="cuda", compute_type="int8_float16")
+# model = WhisperModel(model_size, device="cuda", compute_type="int8_int8")
 # or run on CPU with INT8
 # model = WhisperModel(model_size, device="cpu", compute_type="int8")
 def transcribe_faster_whisper(audio, language='ja', task="transcribe", beam_size=5):
@@ -104,7 +108,7 @@ def transcribe(audio, task):
     return transcribe_faster_whisper(audio_path, language=language)
 
 
-def process_audio_async(audio_data, cid, lang):
+def process_audio_async(audio_data, cid, lang, sp):
     start = time.time()
 
     # VAD
@@ -112,19 +116,18 @@ def process_audio_async(audio_data, cid, lang):
     os.makedirs(audio_dir_path, exist_ok=True)
     audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
     # merge_wav_files(audio_data, audio_file_path)
-
     wav_st = datetime.now()
     print(f"wav st: {str(wav_st)}")
     processing_utils.audio_to_file(
-        sampling_rate, np.hstack(audio_data), audio_file_path, format='wav'
+        sp, np.concatenate(audio_data), audio_file_path, format="wav"
     )
-    print(f"wav merge elapsed: {str(datetime.now() - wav_st)}")
+    print(f"wav merge elapsed: {str({datetime.now() - wav_st})}")
     # with wave.open(audio_file_path, 'wb') as wav_file:
     #     wav_file.setnchannels(1)  # Assuming mono audio
     #     wav_file.setsampwidth(samples_width)
     #     wav_file.setframerate(sampling_rate)
     #     wav_file.writeframes(audio_data)
-
+    vad_st = datetime.now()
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
     print(f"vad_results: {len(vad_results)}")
@@ -141,11 +144,10 @@ def process_audio_async(audio_data, cid, lang):
         return
 
     # ASR
-    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sampling_rate * samples_width)) - chunk_length_seconds)
+    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sp * samples_width)) - chunk_length_seconds)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
-        # initial_prompt = "これから日本語の音声を認識します。"
         asr_st = datetime.now()
         segments, info = asr_pipeline.asr_pipeline.transcribe(audio_file_path,
                                                       word_timestamps=True,
@@ -173,8 +175,6 @@ def process_audio_async(audio_data, cid, lang):
             end = time.time()
             transcription['processing_time'] = end - start
             print(f"processing_time: {transcription['processing_time']}")
-
-            # json_transcription = json.dumps(transcription)
             return transcription
 
         buf_center[cid]['data'].clear()
@@ -208,24 +208,25 @@ def audio_stream(*args, **kwargs):
     if args and args[0]:
         audio_datas, lang, task, client_id = args
         sample_rate, data = audio_datas
-
+        # sampling_rate=sample_rate
         if client_id in buf_center.keys():
-            buf_center[client_id]['data'].append(audio_datas)
+            buf_center[client_id]['data'].append(data)
             buf_center[client_id]['data_len'] += len(data)
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
             # buf_center[client_id]['data'] = bytearray()
-            buf_center[client_id]['data'] = [audio_datas]
+            buf_center[client_id]['data'] = [data]
             buf_center[client_id]['data_len'] = len(data)
 
-        chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
-        if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
+        # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
+        if buf_center[client_id]['data_len']/sample_rate > chunk_length_seconds:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
+            st = datetime.now()
             print(f"start: {str(st)}")
-            res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
+            res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
             print(f"end: {str(datetime.now()-st)}")
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
@@ -289,7 +290,7 @@ if __name__ == '__main__':
     # text_mic_output = gr.TextArea(label="Output", elem_classes="text_output", visible=True, scale=1,
     #                               lines=20,
     #                               autoscroll=True)
-    #
+
     # mic_transcribe = gr.Interface(
     #     fn=audio_stream,
     #     inputs=[
