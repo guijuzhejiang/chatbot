@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import os
+import shutil
 import time
 
 import torch
@@ -248,6 +249,7 @@ def merge_wav_files(input_files, output_file):
 
 
 if __name__ == '__main__':
+    shutil.rmtree("audio_data", ignore_errors=True)
     text_file_output = gr.Textbox(label="Output", elem_classes="text_output", visible=True, scale=1, lines=20, autoscroll=True)
     audio_file_input = gr.Audio(sources=["upload"], type="filepath", label="Record Audio", streaming=False)
 
