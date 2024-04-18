@@ -223,7 +223,7 @@ def audio_stream(*args, **kwargs):
 
                 buf_center[client_id]['data'].clear()
 
-        return gr.update(buf_center[client_id]['texts'])
+        return buf_center[client_id]['texts']
 
 
 def merge_wav_files(input_files, output_file):
