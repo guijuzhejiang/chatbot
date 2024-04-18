@@ -124,6 +124,9 @@ def process_audio_async(audio_data, cid, lang):
 
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
+    print(f"vad_results: {len(vad_results)}")
+
+
     if len(vad_results) > 0:
         vad_segments = [
             {"start": segment.start, "end": segment.end, "confidence": 1.0}
@@ -208,7 +211,7 @@ def audio_stream(*args, **kwargs):
             # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [audio_datas]
             buf_center[client_id]['data_len'] = get_wav_file_size(audio_datas)
-
+        print(buf_center[client_id])
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
             # loop = asyncio.get_event_loop()
