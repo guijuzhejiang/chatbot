@@ -115,7 +115,11 @@ def process_audio_async(audio_data, cid, lang):
     audio_dir_path = f"audio_data/{cid}"
     os.makedirs(audio_dir_path, exist_ok=True)
     audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
+
+    wav_st = datetime.now()
+    print(f"wav st: {str(wav_st)}")
     merge_wav_files(audio_data, audio_file_path)
+    print(f"wav merge elapsed: {str({datetime.now()-wav_st})}")
     # with wave.open(audio_file_path, 'wb') as wav_file:
     #     wav_file.setnchannels(1)  # Assuming mono audio
     #     wav_file.setsampwidth(samples_width)
@@ -127,7 +131,6 @@ def process_audio_async(audio_data, cid, lang):
     vad_segments = []
     print(f"vad_results: {len(vad_results)}")
     print(f"vad_elapsed: {datetime.now()-vad_st}")
-
 
     if len(vad_results) > 0:
         vad_segments = [
