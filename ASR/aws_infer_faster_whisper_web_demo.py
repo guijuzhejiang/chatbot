@@ -215,6 +215,7 @@ def audio_stream(*args, **kwargs):
         chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
 
         print(f"buf_center[client_id]['data_len'] > chunk_length_in_bytes: {buf_center[client_id]['data_len'] > chunk_length_in_bytes}")
+        print(f"chunk_length_in_bytes : {chunk_length_in_bytes}")
 
         if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
             # loop = asyncio.get_event_loop()
