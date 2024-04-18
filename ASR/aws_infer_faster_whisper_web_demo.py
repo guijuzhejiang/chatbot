@@ -226,7 +226,7 @@ def audio_stream(*args, **kwargs):
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
-            st = datetime.now
+            st = datetime.now()
             print(f"start: {str(st)}")
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
             print(f"end: {str(datetime.now()-st)}")
