@@ -108,29 +108,30 @@ def transcribe(audio, task):
     return transcribe_faster_whisper(audio_path, language=language)
 
 
-def process_audio_async(audio_data, cid, lang):
+def process_audio_async(audio_data, cid, lang, sp):
     start = time.time()
 
     # VAD
     audio_dir_path = f"audio_data/{cid}"
     os.makedirs(audio_dir_path, exist_ok=True)
     audio_file_path = os.path.join(audio_dir_path, f'{datetime.now().strftime("%Y-%m-%d_%H-%M-%S")}.wav')
-
+    # merge_wav_files(audio_data, audio_file_path)
     wav_st = datetime.now()
     print(f"wav st: {str(wav_st)}")
-    merge_wav_files(audio_data, audio_file_path)
-    print(f"wav merge elapsed: {str({datetime.now()-wav_st})}")
+    processing_utils.audio_to_file(
+        sp, np.concatenate(audio_data), audio_file_path, format="wav"
+    )
+    print(f"wav merge elapsed: {str({datetime.now() - wav_st})}")
     # with wave.open(audio_file_path, 'wb') as wav_file:
     #     wav_file.setnchannels(1)  # Assuming mono audio
     #     wav_file.setsampwidth(samples_width)
     #     wav_file.setframerate(sampling_rate)
     #     wav_file.writeframes(audio_data)
-
     vad_st = datetime.now()
     vad_results = vad_pipeline.vad_pipeline(audio_file_path)
     vad_segments = []
     print(f"vad_results: {len(vad_results)}")
-    print(f"vad_elapsed: {datetime.now()-vad_st}")
+    print(f"vad_elapsed: {datetime.now() - vad_st}")
 
     if len(vad_results) > 0:
         vad_segments = [
@@ -143,11 +144,10 @@ def process_audio_async(audio_data, cid, lang):
         return
 
     # ASR
-    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sampling_rate * samples_width)) - chunk_length_seconds)
+    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sp * samples_width)) - chunk_length_seconds)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
-        # initial_prompt = "これから日本語の音声を認識します。"
         asr_st = datetime.now()
         segments, info = asr_pipeline.asr_pipeline.transcribe(audio_file_path,
                                                       word_timestamps=True,
@@ -175,7 +175,6 @@ def process_audio_async(audio_data, cid, lang):
             end = time.time()
             transcription['processing_time'] = end - start
             print(f"processing_time: {transcription['processing_time']}")
-            # json_transcription = json.dumps(transcription)
             return transcription
 
         buf_center[cid]['data'].clear()
@@ -208,30 +207,26 @@ def audio_stream(*args, **kwargs):
     print(kwargs)
     if args and args[0]:
         audio_datas, lang, task, client_id = args
-        # sample_rate, data = audio_datas
-
+        sample_rate, data = audio_datas
+        # sampling_rate=sample_rate
         if client_id in buf_center.keys():
-            buf_center[client_id]['data'].append(audio_datas)
-            buf_center[client_id]['data_len'] += get_wav_file_size(audio_datas)
+            buf_center[client_id]['data'].append(data)
+            buf_center[client_id]['data_len'] += len(data)
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
             # buf_center[client_id]['data'] = bytearray()
-            buf_center[client_id]['data'] = [audio_datas]
-            buf_center[client_id]['data_len'] = get_wav_file_size(audio_datas)
-        # print(buf_center[client_id])
-        chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
+            buf_center[client_id]['data'] = [data]
+            buf_center[client_id]['data_len'] = len(data)
 
-        # print(f"buf_center[client_id]['data_len'] > chunk_length_in_bytes: {buf_center[client_id]['data_len'] > chunk_length_in_bytes}")
-        # print(f"chunk_length_in_bytes : {chunk_length_in_bytes}")
-
-        if buf_center[client_id]['data_len'] > chunk_length_in_bytes:
+        # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
+        if buf_center[client_id]['data_len']/sample_rate > chunk_length_seconds:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
             st = datetime.now()
             print(f"start: {str(st)}")
-            res = process_audio_async(buf_center[client_id]['data'], client_id, lang)
+            res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
             print(f"end: {str(datetime.now()-st)}")
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
@@ -285,7 +280,7 @@ if __name__ == '__main__':
         description=("タスクを選択し、ボタンをクリックすると、マイク音声や長い音声入力を書き起こすことができます。"),
         allow_flagging="never",
     )
-    #
+
     # audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio",
     #                            streaming=True,
     #                            waveform_options={"sample_rate": 16000})
@@ -295,7 +290,7 @@ if __name__ == '__main__':
     # text_mic_output = gr.TextArea(label="Output", elem_classes="text_output", visible=True, scale=1,
     #                               lines=20,
     #                               autoscroll=True)
-    #
+
     # mic_transcribe = gr.Interface(
     #     fn=audio_stream,
     #     inputs=[
@@ -323,7 +318,7 @@ if __name__ == '__main__':
         with gr.Row():
             # input
             with gr.Column(scale=1):
-                audio_mic_input = gr.Audio(sources=["microphone"], type="filepath", label="Record Audio",
+                audio_mic_input = gr.Audio(sources=["microphone"], type="numpy", label="Record Audio",
                                            streaming=True,
                                            waveform_options={"sample_rate": 16000})
                 task_mic_input = gr.Radio(["transcribe", "translate"], label="Task", value="transcribe")
