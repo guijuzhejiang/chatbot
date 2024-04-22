@@ -142,10 +142,11 @@ def process_audio_async(audio_data, cid, lang, sp):
 
     if len(vad_segments) == 0:
         buf_center[cid]['data'].clear()
+        buf_center[cid]['data_len'] = 0
         return
 
     # ASR
-    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sp * samples_width)) - chunk_length_seconds)
+    last_segment_should_end_before = ((buf_center[cid]['data_len'] / (sp * 1)) - 0.1)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
@@ -178,7 +179,8 @@ def process_audio_async(audio_data, cid, lang, sp):
             print(f"processing_time: {transcription['processing_time']}")
             return transcription
 
-        buf_center[cid]['data'].clear()
+        buf_center[cid]['data_len'] = 0
+
 
 def get_wav_file_size(wav_file):
     """
@@ -221,22 +223,25 @@ def audio_stream(*args, **kwargs):
             buf_center[client_id]['data_len'] = len(data)
 
         # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
-        # if buf_center[client_id]['data_len']/sample_rate > chunk_length_seconds:
-        audio_data = np.concatenate(buf_center[client_id]['data']).tobytes()
-        audio = AudioSegment(
-            audio_data,
-            frame_rate=sample_rate,
-            sample_width=audio_data.dtype.itemsize,
-            channels=(1 if len(audio_data.shape) == 1 else audio_data.shape[1]),
-        )
-        if audio.duration_seconds > chunk_length_seconds:
+        if buf_center[client_id]['data_len']/sample_rate >= chunk_length_seconds:
+        # audio_data = np.concatenate(buf_center[client_id]['data'])
+        # audio = AudioSegment(
+        #     audio_data.tobytes(),
+        #     frame_rate=sample_rate,
+        #     sample_width=audio_data.dtype.itemsize,
+        #     channels=(1 if len(audio_data.shape) == 1 else audio_data.shape[1]),
+        # )
+        # if audio.duration_seconds > chunk_length_seconds:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
+
             st = datetime.now()
             print(f"start: {str(st)}")
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
             print(f"end: {str(datetime.now()-st)}")
+
+            buf_center[client_id]['data'].clear()
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
@@ -258,8 +263,7 @@ def audio_infer(*args, **kwargs):
     if args and args[0]:
         audio_datas, lang, task, client_id = args
         sample_rate, data = audio_datas
-
-        buf_center[client_id]['data'] = [data]
+        buf_center[client_id] = {"data": [data]}
         st = datetime.now()
         print(f"start: {str(st)}")
         res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
@@ -275,7 +279,7 @@ def audio_infer(*args, **kwargs):
 
             buf_center[client_id]['data'].clear()
 
-        return buf_center[client_id]['texts']
+            return buf_center[client_id]['texts']
 
 def merge_wav_files(input_files, output_file):
     """
@@ -369,15 +373,7 @@ if __name__ == '__main__':
                 clear_btn = gr.Button("Clear", visible=False)
                 clear_btn.click(fn=clear, inputs=client_id_mic_input, outputs=text_mic_output)
 
-        # audio_mic_input.stream(audio_stream,
-        #                        inputs=[
-        #                            audio_mic_input,
-        #                            lang_mic_input,
-        #                            task_mic_input,
-        #                            client_id_mic_input
-        #                        ],
-        #                        outputs=text_mic_output, )
-        audio_mic_input.stop_recording(audio_infer,
+        audio_mic_input.stream(audio_stream,
                                inputs=[
                                    audio_mic_input,
                                    lang_mic_input,
@@ -385,6 +381,14 @@ if __name__ == '__main__':
                                    client_id_mic_input
                                ],
                                outputs=text_mic_output, )
+        # audio_mic_input.stop_recording(audio_infer,
+        #                        inputs=[
+        #                            audio_mic_input,
+        #                            lang_mic_input,
+        #                            task_mic_input,
+        #                            client_id_mic_input
+        #                        ],
+        #                        outputs=text_mic_output, )
 
     with gr.Blocks(fill_height=True, css="style.css") as demo:
         gr.TabbedInterface([file_transcribe, mic_demo], ["Audio file", "Microphone"])
