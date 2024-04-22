@@ -179,7 +179,7 @@ def process_audio_async(audio_data, cid, lang, sp):
             print(f"processing_time: {transcription['processing_time']}")
             return transcription
 
-        buf_center[cid]['data_len'] = 0
+        buf_center[cid]['data'].clear()
 
 
 def get_wav_file_size(wav_file):
@@ -215,15 +215,15 @@ def audio_stream(*args, **kwargs):
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].append(data)
             buf_center[client_id]['data_len'] = buf_center[client_id]['data_len'] + len(data)
+
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
-            # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [data]
             buf_center[client_id]['data_len'] = len(data)
 
         # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
-        if buf_center[client_id]['data_len']/sample_rate >= chunk_length_seconds:
+        if buf_center[client_id]['data_len']/sample_rate/data.dtype.itemsize >= chunk_length_seconds:
         # audio_data = np.concatenate(buf_center[client_id]['data'])
         # audio = AudioSegment(
         #     audio_data.tobytes(),
@@ -241,7 +241,7 @@ def audio_stream(*args, **kwargs):
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
             print(f"end: {str(datetime.now()-st)}")
 
-            buf_center[client_id]['data'].clear()
+            buf_center[client_id]['data_len'] = 0
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
