@@ -281,6 +281,7 @@ def audio_infer(*args, **kwargs):
 
             return buf_center[client_id]['texts']
 
+
 def merge_wav_files(input_files, output_file):
     """
     合并多个 WAV 文件为一个文件
