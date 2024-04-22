@@ -146,7 +146,7 @@ def process_audio_async(audio_data, cid, lang, sp):
         return
 
     # ASR
-    last_segment_should_end_before = ((buf_center[cid]['data_len'] / (sp * 1)) - 0.1)
+    last_segment_should_end_before = ((buf_center[cid]['data_len'] / (sp * audio_data.dtype.itemsize)) - 0.1)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
