@@ -251,6 +251,32 @@ def audio_stream(*args, **kwargs):
         return buf_center[client_id]['texts']
 
 
+def audio_infer(*args, **kwargs):
+    print("audio_stream")
+    print(args)
+    print(kwargs)
+    if args and args[0]:
+        audio_datas, lang, task, client_id = args
+        sample_rate, data = audio_datas
+
+        buf_center[client_id]['data'] = [data]
+        st = datetime.now()
+        print(f"start: {str(st)}")
+        res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
+        print(f"end: {str(datetime.now()-st)}")
+
+        if res and 'words' in res.keys() and len(res['words']) > 0:
+            words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
+
+            if 'texts' in buf_center[client_id].keys():
+                buf_center[client_id]['texts'] += words
+            else:
+                buf_center[client_id]['texts'] = words
+
+            buf_center[client_id]['data'].clear()
+
+        return buf_center[client_id]['texts']
+
 def merge_wav_files(input_files, output_file):
     """
     合并多个 WAV 文件为一个文件
@@ -343,7 +369,15 @@ if __name__ == '__main__':
                 clear_btn = gr.Button("Clear", visible=False)
                 clear_btn.click(fn=clear, inputs=client_id_mic_input, outputs=text_mic_output)
 
-        audio_mic_input.stream(audio_stream,
+        # audio_mic_input.stream(audio_stream,
+        #                        inputs=[
+        #                            audio_mic_input,
+        #                            lang_mic_input,
+        #                            task_mic_input,
+        #                            client_id_mic_input
+        #                        ],
+        #                        outputs=text_mic_output, )
+        audio_mic_input.stop_recording(audio_infer,
                                inputs=[
                                    audio_mic_input,
                                    lang_mic_input,
