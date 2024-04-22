@@ -143,11 +143,13 @@ def process_audio_async(audio_data, cid, lang, sp):
     if len(vad_segments) == 0:
         buf_center[cid]['data'].clear()
         buf_center[cid]['data_len'] = 0
+        buf_center[cid]['buf_data_len'] = 0
         return
 
     # ASR
-    last_segment_should_end_before = ((buf_center[cid]['data_len'] / (sp * audio_data.dtype.itemsize)) - 0.1)
+    last_segment_should_end_before = ((buf_center[cid]['buf_data_len'] / (sp * 1)) - 0.1)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
+
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
         asr_st = datetime.now()
@@ -173,13 +175,14 @@ def process_audio_async(audio_data, cid, lang, sp):
                 ]
         }
 
+        buf_center[cid]['data'].clear()
+        buf_center[cid]['buf_data_len'] = 0
         if transcription['text'] != '':
             end = time.time()
             transcription['processing_time'] = end - start
             print(f"processing_time: {transcription['processing_time']}")
             return transcription
 
-        buf_center[cid]['data'].clear()
 
 
 def get_wav_file_size(wav_file):
@@ -215,12 +218,14 @@ def audio_stream(*args, **kwargs):
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].append(data)
             buf_center[client_id]['data_len'] = buf_center[client_id]['data_len'] + len(data)
+            buf_center[client_id]['buf_data_len'] = buf_center[client_id]['buf_data_len'] + len(data)
 
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
             buf_center[client_id]['data'] = [data]
             buf_center[client_id]['data_len'] = len(data)
+            buf_center[client_id]['buf_data_len'] = len(data)
 
         # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
         if buf_center[client_id]['data_len']/sample_rate/data.dtype.itemsize >= chunk_length_seconds:
@@ -250,8 +255,6 @@ def audio_stream(*args, **kwargs):
                     buf_center[client_id]['texts'] += words
                 else:
                     buf_center[client_id]['texts'] = words
-
-                buf_center[client_id]['data'].clear()
 
         return buf_center[client_id]['texts']
 
