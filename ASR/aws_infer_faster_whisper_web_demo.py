@@ -18,6 +18,7 @@ from faster_whisper import WhisperModel
 from datetime import datetime
 
 from gradio import processing_utils
+from pydub import AudioSegment
 
 from src.filters import japanese_stream_filter
 # from utils import resample_audio
@@ -144,11 +145,14 @@ def process_audio_async(audio_data, cid, lang, sp):
 
     if len(vad_segments) == 0:
         buf_center[cid]['data'].clear()
+        buf_center[cid]['data_len'] = 0
+        buf_center[cid]['buf_data_len'] = 0
         return
 
     # ASR
-    last_segment_should_end_before = ((get_wav_file_size(audio_file_path) / (sp * samples_width)) - chunk_length_seconds)
+    last_segment_should_end_before = ((buf_center[cid]['buf_data_len'] / (sp * 1)) - 0.1)
     if vad_segments[-1]['end'] < last_segment_should_end_before:
+
         # transcription = await asr_pipeline.transcribe(self.client)
         language = lang
         asr_st = datetime.now()
@@ -174,13 +178,15 @@ def process_audio_async(audio_data, cid, lang, sp):
                 ]
         }
 
+        buf_center[cid]['data'].clear()
+        buf_center[cid]['buf_data_len'] = 0
         if transcription['text'] != '':
             end = time.time()
             transcription['processing_time'] = end - start
             print(f"processing_time: {transcription['processing_time']}")
             return transcription
 
-        buf_center[cid]['data'].clear()
+
 
 def get_wav_file_size(wav_file):
     """
@@ -214,23 +220,36 @@ def audio_stream(*args, **kwargs):
         # sampling_rate=sample_rate
         if client_id in buf_center.keys():
             buf_center[client_id]['data'].append(data)
-            buf_center[client_id]['data_len'] += len(data)
+            buf_center[client_id]['data_len'] = buf_center[client_id]['data_len'] + len(data)
+            buf_center[client_id]['buf_data_len'] = buf_center[client_id]['buf_data_len'] + len(data)
+
         else:
             buf_center[client_id] = {}
             buf_center[client_id]['texts'] = ''
-            # buf_center[client_id]['data'] = bytearray()
             buf_center[client_id]['data'] = [data]
             buf_center[client_id]['data_len'] = len(data)
+            buf_center[client_id]['buf_data_len'] = len(data)
 
         # chunk_length_in_bytes = chunk_length_seconds * sampling_rate * samples_width
-        if buf_center[client_id]['data_len']/sample_rate > chunk_length_seconds:
+        if buf_center[client_id]['data_len']/sample_rate/data.dtype.itemsize >= chunk_length_seconds:
+        # audio_data = np.concatenate(buf_center[client_id]['data'])
+        # audio = AudioSegment(
+        #     audio_data.tobytes(),
+        #     frame_rate=sample_rate,
+        #     sample_width=audio_data.dtype.itemsize,
+        #     channels=(1 if len(audio_data.shape) == 1 else audio_data.shape[1]),
+        # )
+        # if audio.duration_seconds > chunk_length_seconds:
             # loop = asyncio.get_event_loop()
             # future = asyncio.ensure_future(process_audio_async(buf_center[client_id]['data'], client_id, lang))
             # res = loop.run_until_complete(future)
+
             st = datetime.now()
             print(f"start: {str(st)}")
             res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
             print(f"end: {str(datetime.now()-st)}")
+
+            buf_center[client_id]['data_len'] = 0
 
             if res and 'words' in res.keys() and len(res['words']) > 0:
                 words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
@@ -240,9 +259,33 @@ def audio_stream(*args, **kwargs):
                 else:
                     buf_center[client_id]['texts'] = words
 
-                buf_center[client_id]['data'].clear()
-
         return buf_center[client_id]['texts']
+
+
+def audio_infer(*args, **kwargs):
+    print("audio_stream")
+    print(args)
+    print(kwargs)
+    if args and args[0]:
+        audio_datas, lang, task, client_id = args
+        sample_rate, data = audio_datas
+        buf_center[client_id] = {"data": [data]}
+        st = datetime.now()
+        print(f"start: {str(st)}")
+        res = process_audio_async(buf_center[client_id]['data'], client_id, lang, sample_rate)
+        print(f"end: {str(datetime.now()-st)}")
+
+        if res and 'words' in res.keys() and len(res['words']) > 0:
+            words = japanese_stream_filter(''.join([w['word'] for w in res['words']]) + '\n')
+
+            if 'texts' in buf_center[client_id].keys():
+                buf_center[client_id]['texts'] += words
+            else:
+                buf_center[client_id]['texts'] = words
+
+            buf_center[client_id]['data'].clear()
+
+            return buf_center[client_id]['texts']
 
 
 def merge_wav_files(input_files, output_file):
