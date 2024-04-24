@@ -10,7 +10,6 @@ from langchain_community.document_loaders import TextLoader
 import tempfile
 from dotenv import load_dotenv
 load_dotenv()
-from langchain.llms import HuggingFaceLLM
 
 
 class ChineseTextSplitter(CharacterTextSplitter):
