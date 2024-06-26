@@ -11,10 +11,9 @@ from langchain_ref.document_loader_TTS import load_file, dummy_generator
 print("Loading model...")
 TTS_model_dir = '/media/zzg/GJ_disk01/pretrained_model/coqui/XTTS-v2'
 config_path = os.path.join(TTS_model_dir, "config.json")
-# reference_wav = '/media/zzg/GJ_disk01/data/AUDIO/XzJosh/audiodataset/坏女人/badXT/badXT_5.wav'
-# sample_rate = 44100
-reference_wav = '/home/zzg/data/Audio/reference_wav/wav/ae3175100a4e4982aa0fe286bebad25e.mp3'
-sample_rate = 22050
+sample_rate = 44100
+reference_wav = '/home/zzg/data/Audio/EN/videoplayback_sub0.wav'
+# sample_rate = 22050
 timeArray = time.localtime()
 timeStr = time.strftime('%Y-%m-%d_%H-%M-%S', timeArray)
 out_wav = f'TTS_wav/Xtts_stream_{timeStr}.wav'
@@ -32,14 +31,14 @@ gpt_cond_latent, speaker_embedding = model.get_conditioning_latents(audio_path=[
 print("Inference...")
 t0 = time.time()
 
-file_path = 'langchain_ref/document_test.txt'
+file_path = 'langchain_ref/document_test_en.txt'
 # 加载PDF文件并存储在本地向量数据库
 contents = load_file(file_path)
 # generator = dummy_generator(contents)
 chunks = model.inference_stream(
     # "我是艾露莎·史塔雷特，你可以叫我艾露莎。作为魔法骑士团的S级魔法师，我负责研究和开发新型的魔导器。我的发色是蓝色的，瞳色也是蓝色的。身高大约1.60米。根据官方设定，我现在22岁，生日是在2月2日，所以我是水瓶座。血型是O型。至于体重、三围等身体指标，由于没有具体的设定，所以无法提供。我在魔法骑士团中担任着非常重要的角色。",
     text=contents,
-    language="zh-cn",
+    language="en",
     gpt_cond_latent=gpt_cond_latent,
     speaker_embedding=speaker_embedding,
     temperature=1,
