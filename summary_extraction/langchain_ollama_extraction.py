@@ -79,7 +79,7 @@ schema = {
     "description": "Schema for extracting recipe information from text."
 }
 
-loader = PyMuPDFLoader("data/recipe.pdf")
+loader = PyMuPDFLoader("../Chat/data/recipe.pdf")
 docs = loader.load()
 
 

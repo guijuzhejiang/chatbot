@@ -63,7 +63,7 @@ llm = ChatGroq(model_name='llama3-70b-8192', temperature=0.0)
 # llm = ChatMistralAI(model="mistral-large-latest", temperature=0)
 # log_text = open('data/extraction_log').read()
 # 定义文本加载器，指定读取的文件路径
-loader = TextLoader("data/extraction_log")
+loader = TextLoader("../Chat/data/extraction_log")
 log_text = loader.load()
 runnable = prompt | llm.with_structured_output(schema=LogEntryData)
 results = runnable.invoke({'text': log_text})
