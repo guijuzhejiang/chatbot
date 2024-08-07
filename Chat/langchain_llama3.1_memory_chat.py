@@ -7,7 +7,8 @@ from langchain.chains.conversation.memory import ConversationSummaryBufferMemory
 from langchain.prompts import PromptTemplate
 from langchain_core.prompts import ChatPromptTemplate, MessagesPlaceholder
 from langchain.chains.conversation.memory import ConversationBufferMemory, ConversationBufferWindowMemory
-from langchain_community.chat_models import ChatOllama
+# from langchain_community.chat_models import ChatOllama
+from langchain_ollama import ChatOllama
 from langchain.prompts import (
     ChatPromptTemplate,
     PromptTemplate,
@@ -41,9 +42,10 @@ def main():
     """
     prompt = ChatPromptTemplate.from_template(template=template)
     prompt = prompt.partial(language="French", name='Mary')
-    # Initialize Groq Langchain chat object and conversation
-    # ['llama3-70b-8192', 'llama3-8b-8192', 'mixtral-8x7b-32768', 'gemma-7b-it']
+
     llm = ChatOllama(model="llama3.1:8b-instruct-q5_K_M", temperature=0.7)
+    # llm = ChatOllama(model="Llama-3-ELYZA-JP-8B-q4_k_m", temperature=0.7)
+    # llm = ChatOllama(model="llama3.1:70b-instruct-q2_K", temperature=0.7)
     memory = ConversationBufferWindowMemory(human_prefix="Human",
                                             ai_prefix="AI",
                                             memory_key="history",
@@ -52,7 +54,8 @@ def main():
     # chain_result = conversation_chain.run(input="你好，你是谁？")
     # chain_result = conversation_chain.predict(input="你好，你是谁？")
     start = datetime.now()
-    chain_result = conversation_chain("你好，你是谁？用中文回答")
+    # chain_result = conversation_chain("你好，你是谁？用中文回答")
+    chain_result = conversation_chain("どうするつもりだ？")
     end = datetime.now()
     print("AI:", chain_result["response"], "time:", end - start)
 
